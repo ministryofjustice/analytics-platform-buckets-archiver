@@ -1,4 +1,5 @@
-#! /usr/bin/env bash -e
+#! /usr/bin/env bash
+set -e
 
 ENV="dev"
 TAG_TO_ARCHIVE="to-archive"
@@ -12,7 +13,7 @@ function buckets_to_archive {
 function log() {
     msg=$1
 
-    echo "[$(date -u)] - ${msg}"
+    echo "[$(date -u)]  ${msg}"
 }
 
 function archive_bucket() {
@@ -21,10 +22,10 @@ function archive_bucket() {
     log "Archiving '${bucket_name}' S3 bucket..."
 
     log "Moving data from '${bucket_name}' to '${ARCHIVE_BUCKET}'..."
-    aws s3 mv --recursive s3://${bucket_name} s3://${ARCHIVE_BUCKET}/${bucket_name}/
+    aws s3 mv --recursive "s3://${bucket_name}" "s3://${ARCHIVE_BUCKET}/${bucket_name}/"
 
     log "Deleting '${bucket_name}' S3 bucket..."
-    aws s3 rb s3://${bucket_name}
+    aws s3 rb "s3://${bucket_name}"
 
     log "'${bucket_name}' S3 bucket archived."
 }
@@ -37,11 +38,11 @@ for bucket_arn in $BUCKETS_ARNS; do
         continue
     fi
 
-    bucket_name=`echo ${bucket_arn} | sed 's/arn:aws:s3::://'`
+    bucket_name=$(echo "${bucket_arn}" | sed 's/arn:aws:s3::://')
 
     log "About to archive '${bucket_name}' ..."
     echo
     sleep 3
 
-    archive_bucket $bucket_name
+    archive_bucket "$bucket_name"
 done
