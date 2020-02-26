@@ -1,20 +1,64 @@
 #! /usr/bin/env bash
 set -e
 
+
 ENV="dev"
 TAG_TO_ARCHIVE="to-archive"
 ARCHIVE_BUCKET="dev-archived-buckets-data"
+
+
+function help() {
+    echo """
+usage: ENV=xxx ARCHIVE_BUCKET=xxx TAG_TO_ARCHIVE=xxx buckets-archiver
+
+buckets-archiver archives S3 buckets tagged as 'to-archive'
+
+For each of these buckets it moves its content to \${ARCHIVE_BUCKET}/\${BUCKET_NAME}/
+and then deletes the S3 bucket.
+
+Environment variables required:
+- ENV, name of the environment, e.g. 'dev'
+- TAG_TO_ARCHIVE, tag to find S3 buckets to archive, e.g. 'to-archive'
+- ARCHIVE_BUCKET, S3 bucket name where the archived data will go, e.g.
+  'dev-archived-buckets-data'
+
+NOTE: This script uses awscli and will look for the AWS credentials the usual
+way. Please refer to AWS documentation for more details:
+
+https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
+"""
+}
+
+
+# Increase Concurrency?
+#   https://docs.aws.amazon.com/cli/latest/topic/s3-config.html#max-concurrent-requests
+#
+# aws configure set default.s3.max_concurrent_requests 20
+
+function main() {
+    BUCKETS_ARNS="$(buckets_to_archive)"
+    for bucket_arn in $BUCKETS_ARNS; do
+        # Ignore buckets in a different environment
+        if [[ ! ${bucket_arn} == arn:aws:s3:::${ENV}-* ]];
+        then
+            continue
+        fi
+
+        bucket_name=$(echo "${bucket_arn}" | sed 's/arn:aws:s3::://')
+
+        log "About to archive '${bucket_name}' ..."
+        echo
+        sleep 3
+
+        archive_bucket "$bucket_name"
+    done
+}
 
 
 function buckets_to_archive {
     aws resourcegroupstaggingapi get-resources --resource-type-filters=s3 --tag-filters Key=${TAG_TO_ARCHIVE},Values=true | jq -r .ResourceTagMappingList[].ResourceARN
 }
 
-function log() {
-    msg=$1
-
-    echo "[$(date -u)]  ${msg}"
-}
 
 function archive_bucket() {
     bucket_name=$1
@@ -30,19 +74,16 @@ function archive_bucket() {
     log "'${bucket_name}' S3 bucket archived."
 }
 
-BUCKETS_ARNS="$(buckets_to_archive)"
-for bucket_arn in $BUCKETS_ARNS; do
-    # Ignore buckets in a different environment
-    if [[ ! ${bucket_arn} == arn:aws:s3:::${ENV}-* ]];
-    then
-        continue
-    fi
 
-    bucket_name=$(echo "${bucket_arn}" | sed 's/arn:aws:s3::://')
+function log() {
+    msg=$1
 
-    log "About to archive '${bucket_name}' ..."
-    echo
-    sleep 3
+    echo "[$(date -u)]  ${msg}"
+}
 
-    archive_bucket "$bucket_name"
-done
+
+case "$1" in
+  archive)  main ;;
+  help)     help ;;
+  *)        help ;;
+esac
