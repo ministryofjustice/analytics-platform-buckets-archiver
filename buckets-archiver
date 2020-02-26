@@ -2,14 +2,12 @@
 set -e
 
 
-ENV="dev"
-TAG_TO_ARCHIVE="to-archive"
-ARCHIVE_BUCKET="dev-archived-buckets-data"
+TO_ARCHIVE_TAG="to-archive"
 
 
 function help() {
     echo """
-usage: ENV=xxx ARCHIVE_BUCKET=xxx TAG_TO_ARCHIVE=xxx buckets-archiver
+usage: ENV=xxx ARCHIVE_BUCKET=xxx buckets-archiver archive
 
 buckets-archiver archives S3 buckets tagged as 'to-archive'
 
@@ -18,7 +16,6 @@ and then deletes the S3 bucket.
 
 Environment variables required:
 - ENV, name of the environment, e.g. 'dev'
-- TAG_TO_ARCHIVE, tag to find S3 buckets to archive, e.g. 'to-archive'
 - ARCHIVE_BUCKET, S3 bucket name where the archived data will go, e.g.
   'dev-archived-buckets-data'
 
@@ -57,7 +54,7 @@ function main() {
 
 
 function buckets_to_archive {
-    aws resourcegroupstaggingapi get-resources --resource-type-filters=s3 --tag-filters Key=${TAG_TO_ARCHIVE},Values=true | jq -r .ResourceTagMappingList[].ResourceARN
+    aws resourcegroupstaggingapi get-resources --resource-type-filters=s3 --tag-filters Key=${TO_ARCHIVE_TAG},Values=true | jq -r .ResourceTagMappingList[].ResourceARN
 }
 
 
@@ -82,6 +79,13 @@ function log() {
     echo "[$(date -u)]  ${msg}"
 }
 
+
+# Show help when `ENV` or `ARCHIVE_BUCKET` are not set
+if [[ -z $ENV || -z $ARCHIVE_BUCKET ]];
+then
+    help
+    exit 1
+fi
 
 case "$1" in
   archive)  main ;;
