@@ -46,6 +46,7 @@ function main() {
 
         bucket_name=$(echo "${bucket_arn}" | sed 's/arn:aws:s3::://')
 
+        echo
         log "About to archive '${bucket_name}' ..."
         echo
         sleep 3
